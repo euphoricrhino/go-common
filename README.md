@@ -1,2 +1,2 @@
 # go-common
-Common go libraries
+Under construction: Common go libraries
