@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAdd(t *testing.T) {
+func TestVec3Add(t *testing.T) {
 	v := BlankVec3()
 
 	u := NewVec3(4, 5, 6)
@@ -20,7 +20,7 @@ func TestAdd(t *testing.T) {
 	assertVec3Equal(t, 5, 7, 9, u, 1e-8)
 }
 
-func TestSub(t *testing.T) {
+func TestVec3Sub(t *testing.T) {
 	v := BlankVec3()
 
 	u := NewVec3(4, 5, 6)
@@ -33,7 +33,7 @@ func TestSub(t *testing.T) {
 	assertVec3Equal(t, 3, 3, 3, u, 1e-8)
 }
 
-func TestScale(t *testing.T) {
+func TestVec3Scale(t *testing.T) {
 	v := BlankVec3()
 
 	u := NewVec3(4, 5, 6)
@@ -45,13 +45,13 @@ func TestScale(t *testing.T) {
 	assertVec3Equal(t, 8, 10, 12, u, 1e-8)
 }
 
-func TestDot(t *testing.T) {
+func TestVec3Dot(t *testing.T) {
 	v := NewVec3(4, 5, 6)
 	u := NewVec3(1, 2, 3)
 	assert.Equal(t, 32.0, v.Dot(u))
 }
 
-func TestCross(t *testing.T) {
+func TestVec3Cross(t *testing.T) {
 	v := BlankVec3()
 	u := NewVec3(4, 5, 6)
 	w := NewVec3(1, 2, 3)
@@ -63,12 +63,12 @@ func TestCross(t *testing.T) {
 	assertVec3Equal(t, 3, -6, 3, u, 1e-8)
 }
 
-func TestNorm(t *testing.T) {
+func TestVec3Norm(t *testing.T) {
 	v := NewVec3(4, 5, 6)
 	assert.Equal(t, math.Sqrt(4*4+5*5+6*6), v.Norm())
 }
 
-func TestNormalize(t *testing.T) {
+func TestVec3Normalize(t *testing.T) {
 	v := NewVec3(4, 5, 6)
 	r := math.Sqrt(4*4 + 5*5 + 6*6)
 	assert.Same(t, v, v.Normalize())

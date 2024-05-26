@@ -7,7 +7,7 @@ type Vec3 [3]float64
 
 func BlankVec3() *Vec3                 { return NewVec3(0, 0, 0) }
 func NewVec3(v0, v1, v2 float64) *Vec3 { return &Vec3{v0, v1, v2} }
-func NewCopyVec3(v *Vec3) *Vec3        { return &Vec3{v[0], v[1], v[2]} }
+func NewCopyVec3(v *Vec3) *Vec3        { return NewVec3(v[0], v[1], v[2]) }
 
 // Add adds u and w and stores the sum into v then returns v.
 func (v *Vec3) Add(u, w *Vec3) *Vec3 {
@@ -49,5 +49,5 @@ func (v *Vec3) Norm() float64 { return math.Sqrt(v.Dot(v)) }
 
 // Normalize normalizes v and returns v.
 func (v *Vec3) Normalize() *Vec3 {
-	return v.Scale(v, 1.0/v.Norm())
+	return v.Scale(v, 1/v.Norm())
 }

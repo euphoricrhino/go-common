@@ -17,7 +17,7 @@ type viewTransform struct {
 var _ Transform = (*viewTransform)(nil)
 
 // NewViewTransform creates a ViewTransform with camera position at pos, looking into the forward direction and pointing up to the up direction.
-// It is the caller's responsibility to ensure that lookAtDir and upDir are mutually orthogonal and normalized.
+// It is the caller's responsibility to ensure that forward and up are mutually orthogonal and normalized.
 func NewViewTransform(pos, forward, up *Vec3) Transform {
 	return &viewTransform{
 		pos: NewCopyVec3(pos),

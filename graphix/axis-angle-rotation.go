@@ -2,14 +2,14 @@ package graphix
 
 import "math"
 
-// axisAngleRotation is a transform defined by rotating around an axis for an angle.
+// axisAngleRotation represents a rotation around an axis by an angle.
 type axisAngleRotation struct {
 	mat [3]Vec3
 }
 
 var _ Transform = (*axisAngleRotation)(nil)
 
-// NewAxisAngle creates a transform that rotates a point around axis n by theta.
+// NewAxisAngleRotation creates a transform that rotates a point around axis n by theta.
 // Caller is responsible for passing in a normalized n.
 func NewAxisAngleRotation(n *Vec3, theta float64) Transform {
 	ct, st := math.Cos(theta), math.Sin(theta)
