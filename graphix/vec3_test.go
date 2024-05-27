@@ -76,8 +76,13 @@ func TestVec3Norm(t *testing.T) {
 }
 
 func TestVec3Normalize(t *testing.T) {
-	v := NewVec3(4, 5, 6)
+	u := NewVec3(4, 5, 6)
 	r := math.Sqrt(4*4 + 5*5 + 6*6)
-	assert.Same(t, v, v.Normalize())
+	v := BlankVec3()
+	assert.Same(t, v, v.Normalize(u))
 	assertVec3Equal(t, 4/r, 5/r, 6/r, v, 1e-8)
+
+	// In place op.
+	assert.Same(t, u, u.Normalize(u))
+	assertVec3Equal(t, 4/r, 5/r, 6/r, u, 1e-8)
 }

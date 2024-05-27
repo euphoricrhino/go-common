@@ -52,7 +52,7 @@ func (v *Vec3) Cross(u, w *Vec3) *Vec3 {
 // Norm returns the L2-norm of v.
 func (v *Vec3) Norm() float64 { return math.Sqrt(v.Dot(v)) }
 
-// Normalize normalizes v and returns v.
-func (v *Vec3) Normalize() *Vec3 {
-	return v.Scale(v, 1/v.Norm())
+// Normalize stores in v the normalized u and returns v.
+func (v *Vec3) Normalize(u *Vec3) *Vec3 {
+	return v.Scale(u, 1/u.Norm())
 }
