@@ -7,6 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestVec3Copy(t *testing.T) {
+	v := NewVec3(1, 2, 3)
+	u := NewVec3(4, 5, 6)
+	assert.Same(t, v, v.Copy(u))
+	assertVec3Equal(t, 4, 5, 6, v, 1e-8)
+}
+
 func TestVec3Add(t *testing.T) {
 	v := BlankVec3()
 

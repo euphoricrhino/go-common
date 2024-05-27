@@ -7,7 +7,7 @@ import (
 )
 
 func TestOrthographicProjector(t *testing.T) {
-	o := &Orthographic{}
+	o := NewOrthographic()
 	v := NewVec3(3, 5, -2)
 	p := BlankProjection()
 	assert.Same(t, p, o.Project(p, v))

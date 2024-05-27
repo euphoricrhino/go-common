@@ -6,3 +6,9 @@ type Transform interface {
 	// Implementation must correctly handle the situation where u and v are the same pointer.
 	Apply(v, u *Vec3) *Vec3
 }
+
+type TransformFunc func(v, u *Vec3) *Vec3
+
+var _ Transform = (TransformFunc)(nil)
+
+func (tf TransformFunc) Apply(v, u *Vec3) *Vec3 { return tf(v, u) }

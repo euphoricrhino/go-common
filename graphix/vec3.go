@@ -9,6 +9,11 @@ func BlankVec3() *Vec3                 { return NewVec3(0, 0, 0) }
 func NewVec3(v0, v1, v2 float64) *Vec3 { return &Vec3{v0, v1, v2} }
 func NewCopyVec3(v *Vec3) *Vec3        { return NewVec3(v[0], v[1], v[2]) }
 
+func (v *Vec3) Copy(u *Vec3) *Vec3 {
+	v[0], v[1], v[2] = u[0], u[1], u[2]
+	return v
+}
+
 // Add adds u and w and stores the sum into v then returns v.
 func (v *Vec3) Add(u, w *Vec3) *Vec3 {
 	v[0] = u[0] + w[0]

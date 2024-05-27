@@ -6,8 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestScreenMap(t *testing.T) {
+func TestScreen(t *testing.T) {
 	sc := NewScreen(200, 400, 0.1, 0.7, 0.5, 0.9)
+	assert.Equal(t, 200, sc.Width())
+	assert.Equal(t, 400, sc.Height())
 
 	p := BlankProjection()
 	q := NewProjection(.3, .8, 0)

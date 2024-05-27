@@ -13,33 +13,35 @@ type Projector interface {
 	Project(p *Projection, v *Vec3) *Projection
 }
 
-// Orthographic defines an orthographic projector with respect to the canonical camera position, i.e.,
+// Defines an orthographic projector with respect to the canonical camera position, i.e.,
 // the camera is positioned at origin, forward is -z, up is +y.
-type Orthographic struct{}
+type orthographic struct{}
 
-var _ Projector = (*Orthographic)(nil)
+var _ Projector = (*orthographic)(nil)
 
-func (*Orthographic) Project(p *Projection, v *Vec3) *Projection {
+func NewOrthographic() Projector { return &orthographic{} }
+
+func (*orthographic) Project(p *Projection, v *Vec3) *Projection {
 	// Use -z as distance since camera is looking at the -z direction.
 	p[0], p[1], p[2] = v[0], v[1], -v[2]
 	return p
 }
 
-// Perspective defines a perspective projector.
-type Perspective struct {
+// Defines a perspective projector.
+type perspective struct {
 	d float64
 }
 
-var _ Projector = (*Perspective)(nil)
+var _ Projector = (*perspective)(nil)
 
 // NewPerspective returns a perspective projector with respect to the canonical camera position, i.e.,
 // the camera is positioned at origin, forward is -z, up is +y.
 // E.g., dist=2 means the projection plane is 2 units in front of the camera (located at z=-2).
-func NewPerspective(dist float64) *Perspective {
-	return &Perspective{d: dist}
+func NewPerspective(dist float64) Projector {
+	return &perspective{d: dist}
 }
 
-func (per *Perspective) Project(p *Projection, v *Vec3) *Projection {
+func (per *perspective) Project(p *Projection, v *Vec3) *Projection {
 	ratio := -per.d / v[2]
 	p[0], p[1], p[2] = v[0]*ratio, v[1]*ratio, -v[2]
 	return p

@@ -20,14 +20,9 @@ type SpaceLine struct {
 	LineWidth float64
 }
 
-// ZRasterizerOptions defines the options to run ZRasterize.
-type ZRasterizerOptions struct {
-	// The view transform.
-	ViewTransform graphix.Transform
-	// The preferred projector.
-	Projector graphix.Projector
-	// The screen setup.
-	Screen *graphix.Screen
+// Options defines the options for zraster.Run().
+type Options struct {
+	Camera *graphix.Camera
 	// The near-Z clipping - only objects further than this distance will be drawn.
 	NearZClip float64
 	// All the 3D line segments to render.
@@ -36,9 +31,9 @@ type ZRasterizerOptions struct {
 	Workers int
 }
 
-// ZRasterize implements a specialized rasterizer for 3D line segments.
+// Run implements a specialized rasterizer for 3D line segments.
 // It renders the line segments into an image while respecting their z-order.
-func ZRasterize(opts ZRasterizerOptions) draw.Image {
+func Run(opts Options) draw.Image {
 	chs := make([]chan zBuffer, opts.Workers)
 	for i := range chs {
 		chs[i] = make(chan zBuffer)
@@ -54,16 +49,16 @@ func ZRasterize(opts ZRasterizerOptions) draw.Image {
 		zbufs[i] = <-ch
 	}
 
-	img := image.NewRGBA(image.Rect(0, 0, opts.Screen.Width, opts.Screen.Height))
+	img := image.NewRGBA(image.Rect(0, 0, opts.Camera.Screen().Width(), opts.Camera.Screen().Height()))
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{0, 0, 0, 0xff}}, image.Point{}, draw.Src)
 
 	var wg sync.WaitGroup
 	wg.Add(opts.Workers)
 	for w := 0; w < opts.Workers; w++ {
 		go func(wk int) {
-			for x := 0; x < opts.Screen.Width; x++ {
-				for y := 0; y < opts.Screen.Height; y++ {
-					i := y*opts.Screen.Width + x
+			for x := 0; x < opts.Camera.Screen().Width(); x++ {
+				for y := 0; y < opts.Camera.Screen().Height(); y++ {
+					i := y*opts.Camera.Screen().Width() + x
 					if i%opts.Workers != wk {
 						continue
 					}
@@ -103,17 +98,18 @@ func ZRasterize(opts ZRasterizerOptions) draw.Image {
 	return img
 }
 
-// One worker to work on a shard of the whole line set, generating its own subset of z-buffers for each pixel.
+// One of the concurrent workers to work on a shard of the whole line set, generating its own subset of z-buffers for each pixel.
 // All z-buffers of the same pixel will be merged and sorted subsequently.
-func zworker(w, workers int, opts *ZRasterizerOptions, ch chan<- zBuffer) {
-	rasterizer := raster.NewRasterizer(opts.Screen.Width, opts.Screen.Height)
+func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
+	width, height := opts.Camera.Screen().Width(), opts.Camera.Screen().Height()
+	rasterizer := raster.NewRasterizer(width, height)
 	rasterizer.UseNonZeroWinding = true
 	rec := &strokeRecorder{
-		width:  opts.Screen.Width,
-		height: opts.Screen.Height,
-		zbuf:   make(zBuffer, opts.Screen.Width*opts.Screen.Height),
+		width:  width,
+		height: height,
+		zbuf:   make(zBuffer, width*height),
 	}
-	// Scratch area variables.
+	// Thread-local scratch area variables.
 	v1 := graphix.BlankVec3()
 	v2 := graphix.BlankVec3()
 	p1 := graphix.BlankProjection()
@@ -126,11 +122,11 @@ func zworker(w, workers int, opts *ZRasterizerOptions, ch chan<- zBuffer) {
 			continue
 		}
 		// View-transform to canonical camera coordinates.
-		opts.ViewTransform.Apply(v1, line.Start)
-		opts.ViewTransform.Apply(v2, line.End)
+		opts.Camera.ViewTransform().Apply(v1, line.Start)
+		opts.Camera.ViewTransform().Apply(v2, line.End)
 		// Do the projection.
-		opts.Projector.Project(p1, v1)
-		opts.Projector.Project(p2, v2)
+		opts.Camera.Projector().Project(p1, v1)
+		opts.Camera.Projector().Project(p2, v2)
 		// Discard the line if both ends are behind the z-clip plane.
 		if p1[2] < opts.NearZClip && p2[2] < opts.NearZClip {
 			continue
@@ -142,8 +138,8 @@ func zworker(w, workers int, opts *ZRasterizerOptions, ch chan<- zBuffer) {
 			zclip(p2, p1, opts.NearZClip)
 		}
 		// Scale to screen dimensions.
-		opts.Screen.Map(p1, p1)
-		opts.Screen.Map(p2, p2)
+		opts.Camera.Screen().Map(p1, p1)
+		opts.Camera.Screen().Map(p2, p2)
 		toFixedPoint(fp1, p1)
 		toFixedPoint(fp2, p2)
 		// Stroke the rasterizer path.

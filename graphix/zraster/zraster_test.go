@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestZRasterizer(t *testing.T) {
+func TestZRasterizerRun(t *testing.T) {
 	// Three lines, with cyclic overlapping relationship.
 	// red over blue, blue over green, green over red.
 	lines := []*SpaceLine{
@@ -34,13 +34,15 @@ func TestZRasterizer(t *testing.T) {
 			LineWidth: 7,
 		},
 	}
-	img := ZRasterize(ZRasterizerOptions{
-		ViewTransform: graphix.NewViewTransform(graphix.NewVec3(0, 0, 8), graphix.NewVec3(0, 0, -1), graphix.NewVec3(0, 1, 0)),
-		Projector:     &graphix.Orthographic{},
-		Screen:        graphix.NewScreen(800, 800, -6, -6, 6, 6),
-		NearZClip:     .1,
-		Lines:         lines,
-		Workers:       4,
+	img := Run(Options{
+		Camera: graphix.NewCamera(
+			graphix.NewViewTransform(graphix.NewVec3(0, 0, 8), graphix.NewVec3(0, 0, -1), graphix.NewVec3(0, 1, 0)),
+			graphix.NewOrthographic(),
+			graphix.NewScreen(800, 800, -6, -6, 6, 6),
+		),
+		NearZClip: .1,
+		Lines:     lines,
+		Workers:   4,
 	})
 
 	f, err := os.CreateTemp(os.TempDir(), "test-zrasterizer*.png")
