@@ -121,58 +121,52 @@ func VisualizeStreamLines(opts StreamLineOptions, trajs []*Trajectory) {
 
 	fmt.Fprintln(os.Stdout, "completed tracing all trajectories.")
 
-	seenPoints := false
 	// Calculate max and min of tangent lengths.
 	maxTan, minTan := math.Inf(-1), math.Inf(1)
 	for _, traj := range trajs {
 		for _, pt := range traj.points {
 			maxTan = math.Max(maxTan, pt.tan)
 			minTan = math.Min(minTan, pt.tan)
-			seenPoints = true
 		}
-	}
-	// Degenerate case.
-	if !seenPoints {
-		maxTan, minTan = 1.0, 0.0
 	}
 
 	// Create line segments for rendering.
-	var lines []*zraster.SpaceLine
+	var paths []*zraster.SpacePath
 	for _, traj := range trajs {
-		r, g, b, _ := traj.Color.RGBA()
-		for i := 0; i < len(traj.points)-1; i++ {
-			// Take the average tangent between the two endpoints, then calculate the fading factor.
-			tan := (traj.points[i].tan + traj.points[i+1].tan) / 2
-			fading := opts.MinFading + (opts.MaxFading-opts.MinFading)*math.Pow((tan-minTan)/(maxTan-minTan), opts.FadingGamma)
-			// Premultiply for the uint32 color fading below: 255/65535=1/257.
-			fading /= 257
-
-			// Instead of applying fading to the alpha channel, we apply them to the RGB channels and set alpha to 1.
-			// This is because zraster will stroke individual line segment of the path, causing double-rendering of the connecting
-			// points. If alpha is not 1, the connecting points will appear brighter than the rest of the path.
-			lines = append(lines, &zraster.SpaceLine{
-				Start:     traj.points[i].pos,
-				End:       traj.points[i+1].pos,
-				Color:     color.NRGBA{R: uint8(float64(r) * fading), G: uint8(float64(g) * fading), B: uint8(float64(b) * fading), A: 0xff},
+		if len(traj.points) == 0 {
+			continue
+		}
+		syms := append([]*Symmetry{{Transform: graphix.IdentityTransform(), Color: traj.Color}}, traj.syms...)
+		for _, sym := range syms {
+			r, g, b, a := sym.Color.RGBA()
+			path := &zraster.SpacePath{
+				End:       sym.Transform.Apply(graphix.BlankVec3(), traj.points[len(traj.points)-1].pos),
 				LineWidth: opts.LineWidth,
-			})
-			// Apply the symmetry transforms.
-			for _, sym := range traj.syms {
-				sr, sg, sb, _ := sym.Color.RGBA()
-				lines = append(lines, &zraster.SpaceLine{
-					Start:     sym.Transform.Apply(graphix.BlankVec3(), traj.points[i].pos),
-					End:       sym.Transform.Apply(graphix.BlankVec3(), traj.points[i+1].pos),
-					Color:     color.NRGBA{R: uint8(float64(sr) * fading), G: uint8(float64(sg) * fading), B: uint8(float64(sb) * fading), A: 0xff},
-					LineWidth: opts.LineWidth,
+			}
+			for i := 0; i < len(traj.points)-1; i++ {
+				// Take the average tangent between the two endpoints, then calculate the fading factor.
+				tan := (traj.points[i].tan + traj.points[i+1].tan) / 2
+				fading := opts.MinFading + (opts.MaxFading-opts.MinFading)*math.Pow((tan-minTan)/(maxTan-minTan), opts.FadingGamma)
+
+				const m = 2<<16 - 1
+				path.Segments = append(path.Segments, &zraster.SpaceVertex{
+					Pos: sym.Transform.Apply(graphix.BlankVec3(), traj.points[i].pos),
+					Color: color.NRGBA{
+						R: uint8(r * m / a >> 8),
+						G: uint8(g * m / a >> 8),
+						B: uint8(b * m / a >> 8),
+						A: uint8(float64(a) * fading / 257), // 65535/255=257
+					},
 				})
 			}
+			paths = append(paths, path)
 		}
 	}
 
 	for f := 0; f < opts.CameraOrbit.NumPositions(); f++ {
 		img := zraster.Run(zraster.Options{
 			Camera:  opts.CameraOrbit.GetCamera(f),
-			Lines:   lines,
+			Paths:   paths,
 			Workers: opts.Workers,
 		})
 		fn := filepath.Join(opts.OutDir, fmt.Sprintf("frame-%04v.png", f))

@@ -12,3 +12,10 @@ type TransformFunc func(v, u *Vec3) *Vec3
 var _ Transform = (TransformFunc)(nil)
 
 func (tf TransformFunc) Apply(v, u *Vec3) *Vec3 { return tf(v, u) }
+
+// IdentityTransform returns an identity transform of a vector.
+func IdentityTransform() Transform {
+	return TransformFunc(func(v, u *Vec3) *Vec3 {
+		return v.Copy(u)
+	})
+}

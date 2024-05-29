@@ -23,16 +23,41 @@ type strokeRecorder struct {
 	strokeG uint32
 	strokeB uint32
 	strokeA uint32
+
+	// These maps stores all the pixels touched by the previous stroke and the current stroke.
+	front   int
+	touched [2]map[int]struct{}
 }
 
-// Prepares the recorder for the next stroke by storing the endpoints' position and stroke color.
-func (rec *strokeRecorder) prepareForStroke(p1, p2 *graphix.Projection, color color.Color) {
-	// Prepare the recorder for this line segment.
+func newStrokeRecorder(width, height int) *strokeRecorder {
+	rec := &strokeRecorder{
+		width:  width,
+		height: height,
+		zbuf:   make(zBuffer, width*height),
+	}
+	rec.touched[0] = make(map[int]struct{})
+	rec.touched[1] = make(map[int]struct{})
+	return rec
+}
+
+func (rec *strokeRecorder) resetForPath() {
+	clear(rec.touched[0])
+	clear(rec.touched[1])
+}
+
+// Prepares the recorder for the rasterization of the next line segment stroke by
+// storing the endpoints' position and stroke color.
+func (rec *strokeRecorder) prepareForRasterization(p1, p2 *graphix.Projection, color color.Color) {
+	// Prepare the recorder for this stroke.
 	rec.p1 = p1
 	rec.p2 = p2
 	dx, dy := p1[0]-p2[0], p1[1]-p2[1]
 	rec.dd = dx*dx + dy*dy
 	rec.strokeR, rec.strokeG, rec.strokeB, rec.strokeA = color.RGBA()
+	// Swap the front/back maps.
+	rec.front = 1 - rec.front
+	// Clear the touched map for the new stroke.
+	clear(rec.touched[rec.front])
 }
 
 // Update the z-buffer with the pixel touched by the rasterizer.
@@ -56,13 +81,27 @@ func (rec *strokeRecorder) updateZBuf(x, y int, r, g, b, a uint32) {
 	}
 
 	i := y*rec.width + x
-	rec.zbuf[i] = append(rec.zbuf[i], &zColor{
-		r: r,
-		g: g,
-		b: b,
-		a: a,
-		z: z,
-	})
+	if _, found := rec.touched[1-rec.front][i]; found {
+		lastIdx := len(rec.zbuf[i]) - 1
+		// The last stroke of the same path touched the same pixel, we will not record both to avoid making the
+		// shared vertex brighter than other part of the path. We simply keep the one with greater opacity.
+		if a > rec.zbuf[i][lastIdx].a {
+			rec.zbuf[i][lastIdx].r = r
+			rec.zbuf[i][lastIdx].g = g
+			rec.zbuf[i][lastIdx].b = b
+			rec.zbuf[i][lastIdx].a = a
+			rec.zbuf[i][lastIdx].z = z
+		}
+	} else {
+		rec.zbuf[i] = append(rec.zbuf[i], &zColor{
+			r: r,
+			g: g,
+			b: b,
+			a: a,
+			z: z,
+		})
+	}
+	rec.touched[rec.front][i] = struct{}{}
 }
 
 // Paint make strokeRecorder implement raster.Painter so we get the call for each rasterized span.
