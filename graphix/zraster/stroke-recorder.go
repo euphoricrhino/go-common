@@ -26,13 +26,13 @@ type strokeRecorder struct {
 }
 
 // Prepares the recorder for the next stroke by storing the endpoints' position and stroke color.
-func (rec *strokeRecorder) prepareForStroke(p1, p2 *graphix.Projection, clr color.Color) {
+func (rec *strokeRecorder) prepareForStroke(p1, p2 *graphix.Projection, color color.Color) {
 	// Prepare the recorder for this line segment.
 	rec.p1 = p1
 	rec.p2 = p2
 	dx, dy := p1[0]-p2[0], p1[1]-p2[1]
 	rec.dd = dx*dx + dy*dy
-	rec.strokeR, rec.strokeG, rec.strokeB, rec.strokeA = clr.RGBA()
+	rec.strokeR, rec.strokeG, rec.strokeB, rec.strokeA = color.RGBA()
 }
 
 // Update the z-buffer with the pixel touched by the rasterizer.

@@ -23,10 +23,9 @@ type SpaceLine struct {
 // Options defines the options for zraster.Run().
 type Options struct {
 	Camera *graphix.Camera
-	// The near-Z clipping - only objects further than this distance will be drawn.
-	NearZClip float64
 	// All the 3D line segments to render.
-	Lines []*SpaceLine
+	Lines     []*SpaceLine
+	NearZClip float64
 	// Concurrency.
 	Workers int
 }
@@ -110,43 +109,41 @@ func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
 		zbuf:   make(zBuffer, width*height),
 	}
 	// Thread-local scratch area variables.
-	v1 := graphix.BlankVec3()
-	v2 := graphix.BlankVec3()
-	p1 := graphix.BlankProjection()
-	p2 := graphix.BlankProjection()
-	fp1 := &fixed.Point26_6{}
-	fp2 := &fixed.Point26_6{}
+	var v1, v2 graphix.Vec3
+	var p1, p2 graphix.Projection
+	var fp1, fp2 fixed.Point26_6
+
 	for i, line := range opts.Lines {
 		// Work only on worker's own shard.
 		if i%opts.Workers != w {
 			continue
 		}
 		// View-transform to canonical camera coordinates.
-		opts.Camera.ViewTransform().Apply(v1, line.Start)
-		opts.Camera.ViewTransform().Apply(v2, line.End)
+		opts.Camera.ViewTransform().Apply(&v1, line.Start)
+		opts.Camera.ViewTransform().Apply(&v2, line.End)
 		// Do the projection.
-		opts.Camera.Projector().Project(p1, v1)
-		opts.Camera.Projector().Project(p2, v2)
+		opts.Camera.Projector().Project(&p1, &v1)
+		opts.Camera.Projector().Project(&p2, &v2)
 		// Discard the line if both ends are behind the z-clip plane.
 		if p1[2] < opts.NearZClip && p2[2] < opts.NearZClip {
 			continue
 		}
 		// Clip the near end at the z-clip plane.
 		if p1[2] < opts.NearZClip {
-			zclip(p1, p2, opts.NearZClip)
+			zclip(&p1, &p2, opts.NearZClip)
 		} else if p2[2] < opts.NearZClip {
-			zclip(p2, p1, opts.NearZClip)
+			zclip(&p2, &p1, opts.NearZClip)
 		}
 		// Scale to screen dimensions.
-		opts.Camera.Screen().Map(p1, p1)
-		opts.Camera.Screen().Map(p2, p2)
-		toFixedPoint(fp1, p1)
-		toFixedPoint(fp2, p2)
+		opts.Camera.Screen().Map(&p1, &p1)
+		opts.Camera.Screen().Map(&p2, &p2)
+		toFixedPoint(&fp1, &p1)
+		toFixedPoint(&fp2, &p2)
 		// Stroke the rasterizer path.
 		var path raster.Path
-		path.Start(*fp1)
-		path.Add1(*fp2)
-		rec.prepareForStroke(p1, p2, line.Color)
+		path.Start(fp1)
+		path.Add1(fp2)
+		rec.prepareForStroke(&p1, &p2, line.Color)
 		rasterizer.Clear()
 		rasterizer.AddStroke(path, toFixed(line.LineWidth), nil, nil)
 		rasterizer.Rasterize(rec)

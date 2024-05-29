@@ -40,9 +40,8 @@ func TestZRasterizerRun(t *testing.T) {
 			graphix.NewOrthographic(),
 			graphix.NewScreen(800, 800, -6, -6, 6, 6),
 		),
-		NearZClip: .1,
-		Lines:     lines,
-		Workers:   4,
+		Lines:   lines,
+		Workers: 4,
 	})
 
 	f, err := os.CreateTemp(os.TempDir(), "test-zrasterizer*.png")
