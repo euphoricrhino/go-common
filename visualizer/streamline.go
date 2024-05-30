@@ -98,7 +98,7 @@ func VisualizeStreamLines(opts StreamLineOptions, trajs []*Trajectory) {
 						break
 					}
 					if last == nil || tmp.Sub(&x, last.pos).Norm() >= opts.MinDist {
-						// Accummulate point onto trajectory if it is at least step away from the previous point.
+						// Accummulate point onto trajectory if it is at least MinDist away from the previous point.
 						pt := &point{tan: a.Norm(), pos: graphix.NewCopyVec3(&x)}
 						traj.points = append(traj.points, pt)
 						last = pt
@@ -132,11 +132,12 @@ func VisualizeStreamLines(opts StreamLineOptions, trajs []*Trajectory) {
 
 	// Create line segments for rendering.
 	var paths []*zraster.SpacePath
+	id := graphix.IdentityTransform()
 	for _, traj := range trajs {
 		if len(traj.points) == 0 {
 			continue
 		}
-		syms := append([]*Symmetry{{Transform: graphix.IdentityTransform(), Color: traj.Color}}, traj.syms...)
+		syms := append([]*Symmetry{{Transform: id, Color: traj.Color}}, traj.syms...)
 		for _, sym := range syms {
 			r, g, b, a := sym.Color.RGBA()
 			path := &zraster.SpacePath{
@@ -148,13 +149,12 @@ func VisualizeStreamLines(opts StreamLineOptions, trajs []*Trajectory) {
 				tan := (traj.points[i].tan + traj.points[i+1].tan) / 2
 				fading := opts.MinFading + (opts.MaxFading-opts.MinFading)*math.Pow((tan-minTan)/(maxTan-minTan), opts.FadingGamma)
 
-				const m = 2<<16 - 1
 				path.Segments = append(path.Segments, &zraster.SpaceVertex{
 					Pos: sym.Transform.Apply(graphix.BlankVec3(), traj.points[i].pos),
 					Color: color.NRGBA{
-						R: uint8(r * m / a >> 8),
-						G: uint8(g * m / a >> 8),
-						B: uint8(b * m / a >> 8),
+						R: uint8(r * math.MaxUint16 / a >> 8),
+						G: uint8(g * math.MaxUint16 / a >> 8),
+						B: uint8(b * math.MaxUint16 / a >> 8),
 						A: uint8(float64(a) * fading / 257), // 65535/255=257
 					},
 				})

@@ -9,8 +9,8 @@ func BlankVec3() *Vec3                 { return &Vec3{0, 0, 0} }
 func NewVec3(v0, v1, v2 float64) *Vec3 { return &Vec3{v0, v1, v2} }
 func NewCopyVec3(v *Vec3) *Vec3        { return &Vec3{v[0], v[1], v[2]} }
 
-// Reset sets v to the zero vector.
-func (v *Vec3) Reset() *Vec3 {
+// Clear sets v to the zero vector.
+func (v *Vec3) Clear() *Vec3 {
 	v[0], v[1], v[2] = 0, 0, 0
 	return v
 }

@@ -4,6 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	"math"
 	"sort"
 	"sync"
 
@@ -83,16 +84,15 @@ func Run(opts Options) draw.Image {
 
 					// Paint the pixels from far to near, multiplying the alpha at each layer in order.
 					for _, zc := range sorted {
-						const m = 1<<16 - 1
 						dr := uint32(img.Pix[idx+0])
 						dg := uint32(img.Pix[idx+1])
 						db := uint32(img.Pix[idx+2])
 						da := uint32(img.Pix[idx+3])
-						a := (m - (zc.a / m)) * 0x101
-						img.Pix[idx+0] = uint8((dr*a + zc.r) / m >> 8)
-						img.Pix[idx+1] = uint8((dg*a + zc.g) / m >> 8)
-						img.Pix[idx+2] = uint8((db*a + zc.b) / m >> 8)
-						img.Pix[idx+3] = uint8((da*a + zc.a) / m >> 8)
+						a := (math.MaxUint16 - (zc.a / math.MaxUint16)) * 257 // 65535/255=257
+						img.Pix[idx+0] = uint8((dr*a + zc.r) / math.MaxUint16 >> 8)
+						img.Pix[idx+1] = uint8((dg*a + zc.g) / math.MaxUint16 >> 8)
+						img.Pix[idx+2] = uint8((db*a + zc.b) / math.MaxUint16 >> 8)
+						img.Pix[idx+3] = uint8((da*a + zc.a) / math.MaxUint16 >> 8)
 					}
 				}
 			}
