@@ -130,10 +130,9 @@ func VisualizeStreamLines(opts StreamLineOptions, trajs []*Trajectory) {
 
 	for f := 0; f < opts.CameraOrbit.NumPositions(); f++ {
 		img := zraster.Run(zraster.Options{
-			Camera:    opts.CameraOrbit.GetCamera(f),
-			Paths:     paths,
-			Workers:   opts.Workers,
-			NearZClip: .1,
+			Camera:  opts.CameraOrbit.GetCamera(f),
+			Paths:   paths,
+			Workers: opts.Workers,
 		})
 		fn := filepath.Join(opts.OutDir, fmt.Sprintf("frame-%04v.png", f))
 		file, err := os.Create(fn)

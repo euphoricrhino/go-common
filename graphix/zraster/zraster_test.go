@@ -110,3 +110,39 @@ func TestZRasterRunSelfIntersectingPath(t *testing.T) {
 	}}
 	zrasterTestHelper(t, paths, "testdata/self-intersecting.png")
 }
+
+// Line segments will be clipped by z-clip plane.
+func TestZRasterRunZClip(t *testing.T) {
+	color := color.NRGBA{R: 0, G: 0, B: 0xff, A: 0xff}
+	paths := []*SpacePath{{
+		Segments: []*SpaceVertex{{
+			Pos:   graphix.NewVec3(4, 2, 6),
+			Color: color,
+		}, {
+			Pos:   graphix.NewVec3(-4, 2, 6),
+			Color: color,
+		}, {
+			Pos:   graphix.NewVec3(0, -2, 10),
+			Color: color,
+		}},
+		End:       graphix.NewVec3(4, 2, 6),
+		LineWidth: 3,
+	}, {
+		Segments: []*SpaceVertex{{
+			Pos:   graphix.NewVec3(5, -3, 10),
+			Color: color,
+		}, {
+			Pos:   graphix.NewVec3(5, 3, 6),
+			Color: color,
+		}, {
+			Pos:   graphix.NewVec3(-5, 3, 6),
+			Color: color,
+		}, {
+			Pos:   graphix.NewVec3(-5, -3, 10),
+			Color: color,
+		}},
+		End:       graphix.NewVec3(5, -3, 10),
+		LineWidth: 3,
+	}}
+	zrasterTestHelper(t, paths, "testdata/zclip.png")
+}

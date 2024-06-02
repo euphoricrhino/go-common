@@ -32,8 +32,7 @@ type SpacePath struct {
 type Options struct {
 	Camera *graphix.Camera
 	// All the 3D paths to render.
-	Paths     []*SpacePath
-	NearZClip float64
+	Paths []*SpacePath
 	// Concurrency.
 	Workers int
 }
@@ -136,15 +135,16 @@ func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
 			// Do the projection.
 			opts.Camera.Projector().Project(&p1, &v1)
 			opts.Camera.Projector().Project(&p2, &v2)
+			nearZClip := opts.Camera.Projector().NearZClip()
 			// Discard the line if both ends are behind the z-clip plane.
-			if p1[2] < opts.NearZClip && p2[2] < opts.NearZClip {
+			if p1[2] < nearZClip && p2[2] < nearZClip {
 				return
 			}
 			// Clip the near end at the z-clip plane.
-			if p1[2] < opts.NearZClip {
-				zclip(&p1, &p2, opts.NearZClip)
-			} else if p2[2] < opts.NearZClip {
-				zclip(&p2, &p1, opts.NearZClip)
+			if p1[2] < nearZClip {
+				zclip(&p1, &p2, nearZClip)
+			} else if p2[2] < nearZClip {
+				zclip(&p2, &p1, nearZClip)
 			}
 			// Scale to screen dimensions.
 			opts.Camera.Screen().Map(&p1, &p1)

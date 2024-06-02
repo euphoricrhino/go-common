@@ -10,6 +10,8 @@ func NewProjection(v0, v1, v2 float64) *Projection { return &Projection{v0, v1, 
 
 // Projector defines an interface projecting a Vec3 into a Projection.
 type Projector interface {
+	// The "near" clipping plane's z-coordinate. Points nearer than this plane shall not produce visible projection.
+	NearZClip() float64
 	Project(p *Projection, v *Vec3) *Projection
 }
 
@@ -20,6 +22,8 @@ type orthographic struct{}
 var _ Projector = (*orthographic)(nil)
 
 func NewOrthographic() Projector { return &orthographic{} }
+
+func (*orthographic) NearZClip() float64 { return 0 }
 
 func (*orthographic) Project(p *Projection, v *Vec3) *Projection {
 	// Use -z as distance since camera is looking at the -z direction.
@@ -40,6 +44,8 @@ var _ Projector = (*perspective)(nil)
 func NewPerspective(dist float64) Projector {
 	return &perspective{d: dist}
 }
+
+func (per *perspective) NearZClip() float64 { return per.d / 5 }
 
 func (per *perspective) Project(p *Projection, v *Vec3) *Projection {
 	ratio := -per.d / v[2]
