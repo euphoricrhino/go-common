@@ -7,6 +7,14 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestOrtho2DCamera(t *testing.T) {
+	sc := &Screen{}
+	cam := NewOrtho2DCamera(sc)
+	assert.Same(t, sc, cam.Screen())
+	v := NewVec3(0, 1, 2)
+	assertVec3Equal(t, 0, 1, 1, cam.ViewTransform().Apply(BlankVec3(), v), 1e-8)
+}
+
 func TestCircularCameraOrbit(t *testing.T) {
 	pr := NewOrthographic()
 	sc := &Screen{}
@@ -50,4 +58,11 @@ func TestCircularCameraOrbit(t *testing.T) {
 	assert.Same(t, pr, cam.Projector())
 	assert.Same(t, sc, cam.Screen())
 	assertVec3Equal(t, -1, 1, -1, cam.ViewTransform().Apply(BlankVec3(), v), 1e-8)
+}
+
+func TestStationaryCamera(t *testing.T) {
+	cam := &Camera{}
+	st := NewStationaryCamera(cam)
+	assert.Equal(t, 1, st.NumPositions())
+	assert.Same(t, cam, st.GetCamera(15))
 }

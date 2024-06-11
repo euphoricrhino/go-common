@@ -24,6 +24,15 @@ func (cam *Camera) ViewTransform() Transform { return cam.vt }
 func (cam *Camera) Projector() Projector     { return cam.pr }
 func (cam *Camera) Screen() *Screen          { return cam.sc }
 
+// NewOrtho2DCamera returns a camera in canonical position (sitting at +z, looking at -z with y as up), given the screen mapping.
+func NewOrtho2DCamera(sc *Screen) *Camera {
+	return NewCamera(
+		NewViewTransform(NewVec3(0, 0, 1), NewVec3(0, 0, -1), NewVec3(0, 1, 0)),
+		NewOrthographic(),
+		sc,
+	)
+}
+
 // CameraOrbit represents an orbiting camera with a finite number of positions defined by the position index.
 type CameraOrbit interface {
 	// NumPositions returns the total number of camera positions along the orbit.
@@ -96,3 +105,17 @@ func (cir *circularCameraOrbit) GetCamera(i int) *Camera {
 	)
 	return NewCamera(vt, cir.pr, cir.sc)
 }
+
+type stationaryCameraOrbit struct {
+	cam *Camera
+}
+
+var _ CameraOrbit = (*stationaryCameraOrbit)(nil)
+
+// NewStationaryCamera returns a CameraOrbit with only one position.
+func NewStationaryCamera(cam *Camera) CameraOrbit {
+	return &stationaryCameraOrbit{cam: cam}
+}
+
+func (st *stationaryCameraOrbit) NumPositions() int       { return 1 }
+func (st *stationaryCameraOrbit) GetCamera(i int) *Camera { return st.cam }
