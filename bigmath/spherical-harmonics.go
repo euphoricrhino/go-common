@@ -5,56 +5,59 @@ import (
 	"math/big"
 )
 
-// SphericalHarmonics stores the spherical harmonics Y_{lm}(theta, phi) for l value up to maxL, and m values in the designated list.
+// SphericalHarmonics represents a family of spherical harmonics with l up to maxL and m in the given list of m.
 type SphericalHarmonics struct {
 	al map[int]*AssocLegendre
-	// Normalization constants, map key is m, then index to the slice is l.
-	c   map[int][]*big.Float
-	phi *big.Float
+	// Untruncated normalization constant - (2l+1)(l-m)!/4(l+m)!
+	c map[int][]*big.Rat
 }
 
-func NewSphericalHarmonics(theta, phi *big.Float, maxL int, m []int) *SphericalHarmonics {
-	thetaf64, _ := theta.Float64()
-	ct := NewFloat(math.Cos(thetaf64), theta.Prec())
-	le := EvalLegendre(ct, maxL)
+// NewSphericalHarmonics creates a family of spherical harmonics with l up to maxL and m in the given list of m.
+func NewSphericalHarmonics(maxL int, m []int) *SphericalHarmonics {
+	le := NewLegendre(maxL)
 	al := make(map[int]*AssocLegendre)
-	c := make(map[int][]*big.Float)
-	pi := NewFloat(math.Pi, le.prec)
+	c := make(map[int][]*big.Rat)
 	for _, mm := range m {
-		al[mm] = EvalAssocLegendre(mm, le)
-		c[mm] = make([]*big.Float, maxL+1)
+		al[mm] = NewAssocLegendre(mm, le)
+		c[mm] = make([]*big.Rat, maxL+1)
+		accum := (*big.Rat).Quo
 		absm := mm
-		accum := (*big.Float).Quo
 		if mm < 0 {
 			absm = -mm
-			accum = (*big.Float).Mul
+			accum = (*big.Rat).Mul
 		}
 		for l := absm; l <= le.maxL; l++ {
-			// 2l+1/4pi*sqrt((l-m)!/(l+m)!)
-			f := NewFloatFromRat(2*l+1, 4, le.prec)
-			f.Quo(f, pi)
+			r := NewRat(2*l+1, 4)
 			for k := absm; k > -absm; k-- {
-				accum(f, f, NewFloatFromInt(l+k, le.prec))
+				accum(r, r, NewRat(l+k, 1))
 			}
-			c[mm][l] = f.Sqrt(f)
+			c[mm][l] = r
 		}
 	}
 	sh := &SphericalHarmonics{
-		al:  al,
-		c:   c,
-		phi: CopyFloat(phi),
+		al: al,
+		c:  c,
 	}
 
 	return sh
 }
 
-func (sh *SphericalHarmonics) Get(l, m int) (*big.Float, *big.Float) {
-	phif64, _ := sh.phi.Float64()
-	// c_{lm}P_l^m(cos(theta))
-	al := sh.al[m]
-	r := BlankFloat(al.le.prec).Mul(sh.c[m][l], al.values[l])
+// Get returns the real part and imaginary part of the spherical harmonic value Y_{l,m}(theta, phi).
+func (sh *SphericalHarmonics) Get(l, m int, theta, phi *big.Float) (*big.Float, *big.Float) {
+	thetaf64, _ := theta.Float64()
+	// We may have precision loss for using float64 sin/cos and constant Pi here.
+	ctf64 := math.Cos(thetaf64)
+	ct := NewFloat(ctf64, theta.Prec())
+	coeff := BlankFloat(theta.Prec()).SetRat(sh.c[m][l])
+	coeff.Quo(coeff, NewFloat(math.Pi, theta.Prec()))
+	coeff.Sqrt(coeff)
+
+	r := sh.al[m].Get(l, ct)
+	r.Mul(r, coeff)
+
+	phif64, _ := phi.Float64()
 	mphi := float64(m) * phif64
-	cp := NewFloat(math.Cos(mphi), sh.phi.Prec())
-	sp := NewFloat(math.Sin(mphi), sh.phi.Prec())
+	cp := NewFloat(math.Cos(mphi), phi.Prec())
+	sp := NewFloat(math.Sin(mphi), phi.Prec())
 	return cp.Mul(cp, r), sp.Mul(sp, r)
 }

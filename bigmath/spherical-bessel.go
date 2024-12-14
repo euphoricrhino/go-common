@@ -6,113 +6,117 @@ import (
 	"math/big"
 )
 
-// SphericalBessel stores values of spherical Bessel functions at x for l=0..maxL.
+// SphericalBessel represents a family of spherical Bessel functions up to the maximum order.
 type SphericalBessel struct {
+	// Kind of the spherical Bessel function: 1 for j_l, 2 for n_l, 3 for h_l(1), 4 for h_l(2).
 	kind int
+	// Maximum order of the spherical Bessel function.
 	maxL int
-	re   []*big.Float
-	im   []*big.Float
+
+	// Polynomial coefficients in 1/x for the spherical Bessel function.
+	// j_l(x) = a_l(1/x) * sin(x)/x + b_l(1/x) * cos(x)
+	// n_l(x) = c_l(1/x) * sin(x) + d_l(1/x) * cos(x)/x
+	a [][]*big.Int
+	b [][]*big.Int
+	c [][]*big.Int
+	d [][]*big.Int
 }
 
-// EvalSphericalBessel returns the evaluation of spherical Bessel function for l=0..maxL at x.
-// kind represents the kind of spherical Bessel function: 1 for j_l(x), 2 for n_l(x), 3 for h_l^(1)(x), 4 for h_l^(2)(x).
-func EvalSphericalBessel(x *big.Float, maxL int, kind int) *SphericalBessel {
+// NewSphericalBessel creates a family of spherical Bessel functions up to the maximum order (maxL).
+// kind is the kind of the spherical Bessel function: 1 for j_l, 2 for n_l, 3 for h_l(1), 4 for h_l(2).
+func NewSphericalBessel(kind, maxL int) *SphericalBessel {
 	if maxL < 0 {
 		panic(fmt.Sprintf("maxL must be non-negative, got %v", maxL))
 	}
-	sb := &SphericalBessel{
-		kind: kind,
-		maxL: maxL,
+	if kind < 1 || kind > 4 {
+		panic(fmt.Sprintf("kind must be in [1, 4], got %v", kind))
 	}
-
-	coeff := func(v0, v1 *big.Float) []*big.Float {
-		v := make([]*big.Float, maxL+1)
-		v[0] = v0
+	generate := func(do bool, v0, v1 *big.Int) [][]*big.Int {
+		if !do {
+			return nil
+		}
+		v := make([][]*big.Int, maxL+1)
+		v[0] = []*big.Int{v0}
 		if maxL > 0 {
-			v[1] = v1
+			v[1] = []*big.Int{nil, v1}
 		}
 		for l := 2; l <= maxL; l++ {
-			f := NewFloatFromInt(2*l-1, x.Prec())
-			v[l] = BlankFloat(x.Prec()).Mul(f, v[l-1])
-			v[l].Quo(v[l], x)
-			v[l].Sub(v[l], v[l-2])
+			vl := make([]*big.Int, l+1)
+			v[l] = vl
+			f := NewInt(2*l - 1)
+			for k := l; k >= 0; k -= 2 {
+				vl[k] = BlankInt()
+				if k > 0 {
+					vl[k].Mul(v[l-1][k-1], f)
+				}
+				if k <= l-2 {
+					vl[k].Sub(vl[k], v[l-2][k])
+				}
+			}
 		}
 		return v
 	}
 
-	val := func(u, v []*big.Float, s, c *big.Float) []*big.Float {
-		ret := make([]*big.Float, maxL+1)
-		for l := 0; l <= maxL; l++ {
-			ret[l] = BlankFloat(x.Prec()).Mul(u[l], s)
-			ret[l].Add(ret[l], BlankFloat(x.Prec()).Mul(v[l], c))
-		}
-		return ret
+	return &SphericalBessel{
+		kind: kind,
+		maxL: maxL,
+		a:    generate(kind != 2, NewInt(1), NewInt(1)),
+		b:    generate(kind != 2, NewInt(0), NewInt(-1)),
+		c:    generate(kind != 1, NewInt(0), NewInt(-1)),
+		d:    generate(kind != 1, NewInt(-1), NewInt(-1)),
 	}
-
-	invx := func(sign float64) *big.Float {
-		invx := NewFloat(sign, x.Prec())
-		invx.Quo(invx, x)
-		return invx
-	}
-
-	sc := func() (*big.Float, *big.Float) {
-		// For the lack of Sin/Cos on big.Float, we use the float64 version, which might have precision loss.
-		x64f, _ := x.Float64()
-		return NewFloat(math.Sin(x64f), x.Prec()), NewFloat(math.Cos(x64f), x.Prec())
-	}
-
-	switch kind {
-	case 1:
-		// 1, 1/x
-		u := coeff(NewFloat(1, x.Prec()), invx(1))
-		// 0, -1/x
-		v := coeff(NewFloat(0, x.Prec()), invx(-1))
-		s, c := sc()
-		s.Quo(s, x)
-		// sin(x)/x, cos(x)
-		sb.re = val(u, v, s, c)
-	case 2:
-		// 0, -1/x
-		u := coeff(NewFloat(0, x.Prec()), invx(-1))
-		// -1, -1/x
-		v := coeff(NewFloat(-1, x.Prec()), invx(-1))
-		s, c := sc()
-		c.Quo(c, x)
-		// sin(x), cos(x)/x
-		sb.re = val(u, v, s, c)
-	case 3:
-		fallthrough
-	case 4:
-		// Re: 1, 1/x; 0, -1/x
-		reu := coeff(NewFloat(1, x.Prec()), invx(1))
-		rev := coeff(NewFloat(0, x.Prec()), invx(-1))
-		// sin(x), cos(x)/x
-		res, rec := sc()
-		res.Quo(res, x)
-		sb.re = val(reu, rev, res, rec)
-
-		// Im: 0, -1/x; -1, -1/x
-		imu := coeff(NewFloat(0, x.Prec()), invx(-1))
-		imv := coeff(NewFloat(-1, x.Prec()), invx(-1))
-		ims, imc := sc()
-		imc.Quo(imc, x)
-		sb.im = val(imu, imv, ims, imc)
-		// For h_l^(2)(x), negate the imaginary part.
-		if kind == 4 {
-			for l := 0; l <= maxL; l++ {
-				sb.im[l].Neg(sb.im[l])
-			}
-		}
-	default:
-		panic(fmt.Sprintf("kind must be within range [1, 4], got %v", kind))
-	}
-	return sb
 }
 
-// Get returns the real and imaginary parts (or nil when not applicable) of the spherical Bessel function for l.
-func (sb *SphericalBessel) Get(l int) (*big.Float, *big.Float) {
-	if sb.kind <= 2 {
-		return sb.re[l], nil
+// Get returns the real and imaginary part of z_l(x) where z is the spherical Bessel function of the corresponding kind.
+func (sb *SphericalBessel) Get(l int, x *big.Float) (*big.Float, *big.Float) {
+	xf64, _ := x.Float64()
+	// We may have precision loss for using float64 sin/cos here.
+	sf64, cf64 := math.Sin(xf64), math.Cos(xf64)
+	s, c := NewFloat(sf64, x.Prec()), NewFloat(cf64, x.Prec())
+	sx := BlankFloat(x.Prec()).Quo(s, x)
+	cx := BlankFloat(x.Prec()).Quo(c, x)
+	invx := BlankFloat(x.Prec()).Quo(NewFloat(1, x.Prec()), x)
+	var va, vb, vc, vd *big.Float
+	if sb.kind != 2 {
+		va = evalIntSkipPolynomial(invx, sb.a[l])
+		va.Mul(va, sx)
+		vb = evalIntSkipPolynomial(invx, sb.b[l])
+		vb.Mul(vb, c)
 	}
-	return sb.re[l], sb.im[l]
+	if sb.kind != 1 {
+		vc = evalIntSkipPolynomial(invx, sb.c[l])
+		vc.Mul(vc, s)
+		vd = evalIntSkipPolynomial(invx, sb.d[l])
+		vd.Mul(vd, cx)
+	}
+
+	switch sb.kind {
+	case 1:
+		return va.Add(va, vb), nil
+	case 2:
+		return vc.Add(vc, vd), nil
+	case 3:
+		return va.Add(va, vb), vc.Add(vc, vd)
+	case 4:
+		vc.Add(vc, vd)
+		vc.Neg(vc)
+		return va.Add(va, vb), vc
+	}
+	panic("unreachable")
+}
+
+func evalIntSkipPolynomial(x *big.Float, c []*big.Int) *big.Float {
+	sum := BlankFloat(x.Prec())
+	power := NewFloat(1, x.Prec())
+	k := 0
+	if len(c)%2 == 0 {
+		k = 1
+		power = CopyFloat(x)
+	}
+	x2 := BlankFloat(x.Prec()).Mul(x, x)
+	for ; k < len(c); k += 2 {
+		sum.Add(sum, BlankFloat(x.Prec()).Mul(power, BlankFloat(x.Prec()).SetInt(c[k])))
+		power.Mul(power, x2)
+	}
+	return sum
 }
