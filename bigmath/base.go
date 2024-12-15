@@ -66,10 +66,7 @@ func Fact2(n int) *big.Int {
 // PowerN returns base^n.
 func PowerN(base *big.Float, n int) *big.Float {
 	result := NewFloat(1, base.Prec())
-	absn := n
-	if n < 0 {
-		absn = -absn
-	}
+	absn := abs(n)
 
 	r := CopyFloat(base)
 	// Perform repeated multiplication
@@ -86,4 +83,11 @@ func PowerN(base *big.Float, n int) *big.Float {
 	}
 
 	return result
+}
+
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
 }

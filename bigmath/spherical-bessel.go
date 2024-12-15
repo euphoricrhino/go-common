@@ -67,15 +67,16 @@ func NewSphericalBessel(kind, maxL int) *SphericalBessel {
 	}
 }
 
-// Get returns the real and imaginary part of z_l(x) where z is the spherical Bessel function of the corresponding kind.
-func (sb *SphericalBessel) Get(l int, x *big.Float) (*big.Float, *big.Float) {
+// Get returns z_l(x) where z is the spherical Bessel function of the corresponding kind.
+func (sb *SphericalBessel) Get(l int, x *big.Float) *ReIm {
 	xf64, _ := x.Float64()
 	// We may have precision loss for using float64 sin/cos here.
 	sf64, cf64 := math.Sin(xf64), math.Cos(xf64)
 	s, c := NewFloat(sf64, x.Prec()), NewFloat(cf64, x.Prec())
 	sx := BlankFloat(x.Prec()).Quo(s, x)
 	cx := BlankFloat(x.Prec()).Quo(c, x)
-	invx := BlankFloat(x.Prec()).Quo(NewFloat(1, x.Prec()), x)
+	invx := NewFloat(1, x.Prec())
+	invx.Quo(invx, x)
 	var va, vb, vc, vd *big.Float
 	if sb.kind != 2 {
 		va = evalIntSkipPolynomial(invx, sb.a[l])
@@ -92,15 +93,15 @@ func (sb *SphericalBessel) Get(l int, x *big.Float) (*big.Float, *big.Float) {
 
 	switch sb.kind {
 	case 1:
-		return va.Add(va, vb), nil
+		return NewReIm(va.Add(va, vb), nil)
 	case 2:
-		return vc.Add(vc, vd), nil
+		return NewReIm(vc.Add(vc, vd), nil)
 	case 3:
-		return va.Add(va, vb), vc.Add(vc, vd)
+		return NewReIm(va.Add(va, vb), vc.Add(vc, vd))
 	case 4:
 		vc.Add(vc, vd)
 		vc.Neg(vc)
-		return va.Add(va, vb), vc
+		return NewReIm(va.Add(va, vb), vc)
 	}
 	panic("unreachable")
 }
@@ -114,8 +115,11 @@ func evalIntSkipPolynomial(x *big.Float, c []*big.Int) *big.Float {
 		power = CopyFloat(x)
 	}
 	x2 := BlankFloat(x.Prec()).Mul(x, x)
+	term := BlankFloat(x.Prec())
 	for ; k < len(c); k += 2 {
-		sum.Add(sum, BlankFloat(x.Prec()).Mul(power, BlankFloat(x.Prec()).SetInt(c[k])))
+		term.SetInt(c[k])
+		term.Mul(term, power)
+		sum.Add(sum, term)
 		power.Mul(power, x2)
 	}
 	return sum

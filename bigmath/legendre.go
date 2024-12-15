@@ -62,10 +62,7 @@ type AssocLegendre struct {
 
 // NewAssocLegendre creates the family of associated Legendre functions of a given order m up to degree maxL.
 func NewAssocLegendre(m int, le *Legendre) *AssocLegendre {
-	absm := m
-	if m < 0 {
-		absm = -m
-	}
+	absm := abs(m)
 	if absm > le.maxL {
 		panic(fmt.Sprintf("|m| must be no larger than maxL (%v), got %v", le.maxL, m))
 	}
@@ -117,11 +114,7 @@ func (al *AssocLegendre) Get(l int, x *big.Float) *big.Float {
 	s := BlankFloat(x.Prec()).Mul(x, x)
 	s.Sub(NewFloat(1, x.Prec()), s)
 	s.Sqrt(s)
-	absm := al.m
-	if al.m < 0 {
-		absm = -al.m
-	}
-	return p.Mul(p, PowerN(s, absm))
+	return p.Mul(p, PowerN(s, abs(al.m)))
 }
 
 func evalRatSkipPolynomial(x *big.Float, c []*big.Rat) *big.Float {
@@ -133,8 +126,11 @@ func evalRatSkipPolynomial(x *big.Float, c []*big.Rat) *big.Float {
 		power = CopyFloat(x)
 	}
 	x2 := BlankFloat(x.Prec()).Mul(x, x)
+	term := BlankFloat(x.Prec())
 	for ; k < len(c); k += 2 {
-		sum.Add(sum, BlankFloat(x.Prec()).Mul(power, BlankFloat(x.Prec()).SetRat(c[k])))
+		term.SetRat(c[k])
+		term.Mul(term, power)
+		sum.Add(sum, term)
 		power.Mul(power, x2)
 	}
 	return sum

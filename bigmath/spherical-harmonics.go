@@ -21,9 +21,8 @@ func NewSphericalHarmonics(maxL int, m []int) *SphericalHarmonics {
 		al[mm] = NewAssocLegendre(mm, le)
 		c[mm] = make([]*big.Rat, maxL+1)
 		accum := (*big.Rat).Quo
-		absm := mm
+		absm := abs(mm)
 		if mm < 0 {
-			absm = -mm
 			accum = (*big.Rat).Mul
 		}
 		for l := absm; l <= le.maxL; l++ {
@@ -42,22 +41,24 @@ func NewSphericalHarmonics(maxL int, m []int) *SphericalHarmonics {
 	return sh
 }
 
-// Get returns the real part and imaginary part of the spherical harmonic value Y_{l,m}(theta, phi).
-func (sh *SphericalHarmonics) Get(l, m int, theta, phi *big.Float) (*big.Float, *big.Float) {
+// Get returns the spherical harmonic value Y_{l,m}(theta, phi).
+func (sh *SphericalHarmonics) Get(l, m int, theta, phi *big.Float) *ModArg {
 	thetaf64, _ := theta.Float64()
 	// We may have precision loss for using float64 sin/cos and constant Pi here.
 	ctf64 := math.Cos(thetaf64)
 	ct := NewFloat(ctf64, theta.Prec())
-	coeff := BlankFloat(theta.Prec()).SetRat(sh.c[m][l])
-	coeff.Quo(coeff, NewFloat(math.Pi, theta.Prec()))
-	coeff.Sqrt(coeff)
 
 	r := sh.al[m].Get(l, ct)
-	r.Mul(r, coeff)
+	r.Mul(r, sh.norm(l, m, theta.Prec()))
 
-	phif64, _ := phi.Float64()
-	mphi := float64(m) * phif64
-	cp := NewFloat(math.Cos(mphi), phi.Prec())
-	sp := NewFloat(math.Sin(mphi), phi.Prec())
-	return cp.Mul(cp, r), sp.Mul(sp, r)
+	arg := NewFloat(float64(m), theta.Prec())
+	arg.Mul(arg, phi)
+	return NewModArg(r, arg)
+}
+
+// The normalization factor for Y_{l,m}.
+func (sh *SphericalHarmonics) norm(l, m int, prec uint) *big.Float {
+	coeff := BlankFloat(prec).SetRat(sh.c[m][l])
+	coeff.Quo(coeff, NewFloat(math.Pi, prec))
+	return coeff.Sqrt(coeff)
 }
