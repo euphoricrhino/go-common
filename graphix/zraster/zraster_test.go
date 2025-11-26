@@ -13,9 +13,13 @@ import (
 )
 
 func zrasterTestHelper(t *testing.T, paths []*SpacePath, benchmarkFile string) {
-	img := Run(Options{
+	img := Run(Settings{
 		Camera: graphix.NewCamera(
-			graphix.NewViewTransform(graphix.NewVec3(0, 0, 8), graphix.NewVec3(0, 0, -1), graphix.NewVec3(0, 1, 0)),
+			graphix.NewViewTransform(
+				graphix.NewVec3(0, 0, 8),
+				graphix.NewVec3(0, 0, -1),
+				graphix.NewVec3(0, 1, 0),
+			),
 			graphix.NewOrthographic(),
 			graphix.NewScreen(800, 800, -6, -6, 6, 6),
 		),
@@ -84,7 +88,13 @@ func TestZRasterRunSpiral(t *testing.T) {
 	}
 	l += dl
 	theta += dtheta
-	paths := []*SpacePath{{Segments: segments, End: graphix.NewVec3(l*math.Cos(theta), l*math.Sin(theta), 0), LineWidth: 15}}
+	paths := []*SpacePath{
+		{
+			Segments:  segments,
+			End:       graphix.NewVec3(l*math.Cos(theta), l*math.Sin(theta), 0),
+			LineWidth: 15,
+		},
+	}
 
 	zrasterTestHelper(t, paths, "testdata/spiral.png")
 }

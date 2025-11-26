@@ -33,13 +33,13 @@ func NewOrtho2DCamera(sc *Screen) *Camera {
 	)
 }
 
-// CameraOrbit represents an orbiting camera with a finite number of positions defined by the position index.
+// CameraOrbit represents a series of camera configurations.
 type CameraOrbit interface {
-	// NumPositions returns the total number of camera positions along the orbit.
-	NumPositions() int
-	// GetCamera gets the camera at the ith position along the orbit.
-	// It is up to the implementation to define the mapping of i and the camera configuration.
-	GetCamera(i int) *Camera
+	// Frames returns the total number of frames of camera orbit.
+	Frames() int
+	// GetCamera gets the camera at the fth frame along the orbit.
+	// It is up to the implementation to define the mapping of f and the camera configuration.
+	GetCamera(f int) *Camera
 }
 
 // A simple implementation of CameraOrbit. The cameras are positioned along a circular
@@ -52,9 +52,9 @@ type circularCameraOrbit struct {
 	forward *Vec3
 	up      *Vec3
 
-	numPositions int
-	angleOffset  float64
-	angleInc     float64
+	frames      int
+	angleOffset float64
+	angleInc    float64
 
 	pr Projector
 	sc *Screen
@@ -62,9 +62,9 @@ type circularCameraOrbit struct {
 
 var _ CameraOrbit = (*circularCameraOrbit)(nil)
 
-// NewCircularCameraOrbit creates a circular camera orbit with normal n, and numPositions positions equally distributed
+// NewCircularCameraOrbit creates a circular camera orbit with normal n, and frames positions equally distributed
 // along the circular orbit. At position i, a rotation transform Ri will be applied to the view transform defined
-// by pos/forward/up, where Ri is a rotation around n by angle θ which is equal to angleOffset+i*2π/numPositions.
+// by pos/forward/up, where Ri is a rotation around n by angle θ which is equal to angleOffset+i*2π/frames.
 // Caller is responsible for passing in arguments satisfying the following requirements:
 // - n, forward, up must be normalized;
 // - n and pos must be orthogonal to each other;
@@ -74,28 +74,28 @@ func NewCircularCameraOrbit(
 	pos *Vec3,
 	forward *Vec3,
 	up *Vec3,
-	numPositions int,
+	frames int,
 	angleOffset float64,
 	pr Projector,
 	sc *Screen,
 ) CameraOrbit {
 	return &circularCameraOrbit{
-		n:            NewCopyVec3(n),
-		pos:          NewCopyVec3(pos),
-		forward:      NewCopyVec3(forward),
-		up:           NewCopyVec3(up),
-		numPositions: numPositions,
-		angleOffset:  angleOffset,
-		angleInc:     2 * math.Pi / float64(numPositions),
-		pr:           pr,
-		sc:           sc,
+		n:           NewCopyVec3(n),
+		pos:         NewCopyVec3(pos),
+		forward:     NewCopyVec3(forward),
+		up:          NewCopyVec3(up),
+		frames:      frames,
+		angleOffset: angleOffset,
+		angleInc:    2 * math.Pi / float64(frames),
+		pr:          pr,
+		sc:          sc,
 	}
 }
 
-func (cir *circularCameraOrbit) NumPositions() int { return cir.numPositions }
+func (cir *circularCameraOrbit) Frames() int { return cir.frames }
 
 func (cir *circularCameraOrbit) GetCamera(i int) *Camera {
-	i = i % cir.numPositions
+	i = i % cir.frames
 	theta := cir.angleOffset + cir.angleInc*float64(i)
 	rot := NewAxisAngleRotation(cir.n, theta)
 	vt := NewViewTransform(
@@ -107,15 +107,16 @@ func (cir *circularCameraOrbit) GetCamera(i int) *Camera {
 }
 
 type stationaryCameraOrbit struct {
-	cam *Camera
+	cam    *Camera
+	frames int
 }
 
 var _ CameraOrbit = (*stationaryCameraOrbit)(nil)
 
 // NewStationaryCamera returns a CameraOrbit with only one position.
-func NewStationaryCamera(cam *Camera) CameraOrbit {
-	return &stationaryCameraOrbit{cam: cam}
+func NewStationaryCamera(cam *Camera, frames int) CameraOrbit {
+	return &stationaryCameraOrbit{cam: cam, frames: frames}
 }
 
-func (st *stationaryCameraOrbit) NumPositions() int       { return 1 }
+func (st *stationaryCameraOrbit) Frames() int             { return st.frames }
 func (st *stationaryCameraOrbit) GetCamera(i int) *Camera { return st.cam }

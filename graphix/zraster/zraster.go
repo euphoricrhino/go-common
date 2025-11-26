@@ -28,8 +28,8 @@ type SpacePath struct {
 	LineWidth float64
 }
 
-// Options defines the options for zraster.Run().
-type Options struct {
+// Settings defines the settings for zraster.Run().
+type Settings struct {
 	Camera *graphix.Camera
 	// All the 3D paths to render.
 	Paths []*SpacePath
@@ -39,14 +39,14 @@ type Options struct {
 
 // Run implements a specialized rasterizer for 3D paths.
 // It renders the paths into an image while respecting their z-order.
-func Run(opts Options) draw.Image {
-	chs := make([]chan zBuffer, opts.Workers)
+func Run(settings Settings) draw.Image {
+	chs := make([]chan zBuffer, settings.Workers)
 	for i := range chs {
 		chs[i] = make(chan zBuffer)
 	}
 
-	for w := 0; w < opts.Workers; w++ {
-		go zworker(w, opts.Workers, &opts, chs[w])
+	for w := 0; w < settings.Workers; w++ {
+		go zworker(w, &settings, chs[w])
 	}
 
 	// Wait for all workers to finish updating their zbuffers.
@@ -55,17 +55,19 @@ func Run(opts Options) draw.Image {
 		zbufs[i] = <-ch
 	}
 
-	img := image.NewRGBA(image.Rect(0, 0, opts.Camera.Screen().Width(), opts.Camera.Screen().Height()))
+	img := image.NewRGBA(
+		image.Rect(0, 0, settings.Camera.Screen().Width(), settings.Camera.Screen().Height()),
+	)
 	draw.Draw(img, img.Bounds(), &image.Uniform{color.RGBA{0, 0, 0, 0xff}}, image.Point{}, draw.Src)
 
 	var wg sync.WaitGroup
-	wg.Add(opts.Workers)
-	for w := 0; w < opts.Workers; w++ {
+	wg.Add(settings.Workers)
+	for w := 0; w < settings.Workers; w++ {
 		go func(wk int) {
-			for x := 0; x < opts.Camera.Screen().Width(); x++ {
-				for y := 0; y < opts.Camera.Screen().Height(); y++ {
-					i := y*opts.Camera.Screen().Width() + x
-					if i%opts.Workers != wk {
+			for x := 0; x < settings.Camera.Screen().Width(); x++ {
+				for y := 0; y < settings.Camera.Screen().Height(); y++ {
+					i := y*settings.Camera.Screen().Width() + x
+					if i%settings.Workers != wk {
 						continue
 					}
 					// Merge and sort zbuffers from all concurrent shards at pixel i.
@@ -105,8 +107,8 @@ func Run(opts Options) draw.Image {
 
 // One of the concurrent workers to work on a shard of the whole paths set, generating its own subset of z-buffers for each pixel.
 // All z-buffers of the same pixel will be merged and sorted subsequently.
-func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
-	width, height := opts.Camera.Screen().Width(), opts.Camera.Screen().Height()
+func zworker(w int, settings *Settings, ch chan<- zBuffer) {
+	width, height := settings.Camera.Screen().Width(), settings.Camera.Screen().Height()
 	rasterizer := raster.NewRasterizer(width, height)
 	rasterizer.UseNonZeroWinding = true
 	rec := newStrokeRecorder(width, height)
@@ -115,9 +117,9 @@ func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
 	var p1, p2 graphix.Projection
 	var fp1, fp2 fixed.Point26_6
 
-	for i, path := range opts.Paths {
+	for i, path := range settings.Paths {
 		// Work only on worker's own shard.
-		if i%opts.Workers != w {
+		if i%settings.Workers != w {
 			continue
 		}
 
@@ -130,12 +132,12 @@ func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
 		// Strokes a 3D line segment from pos1 to pos2.
 		stroke := func(pos1, pos2 *graphix.Vec3, color color.Color) {
 			// View-transform to canonical camera coordinates.
-			opts.Camera.ViewTransform().Apply(&v1, pos1)
-			opts.Camera.ViewTransform().Apply(&v2, pos2)
+			settings.Camera.ViewTransform().Apply(&v1, pos1)
+			settings.Camera.ViewTransform().Apply(&v2, pos2)
 			// Do the projection.
-			opts.Camera.Projector().Project(&p1, &v1)
-			opts.Camera.Projector().Project(&p2, &v2)
-			nearZClip := opts.Camera.Projector().NearZClip()
+			settings.Camera.Projector().Project(&p1, &v1)
+			settings.Camera.Projector().Project(&p2, &v2)
+			nearZClip := settings.Camera.Projector().NearZClip()
 			// Discard the line if both ends are behind the z-clip plane.
 			if p1[2] < nearZClip && p2[2] < nearZClip {
 				return
@@ -147,8 +149,8 @@ func zworker(w, workers int, opts *Options, ch chan<- zBuffer) {
 				zclip(&p2, &p1, nearZClip)
 			}
 			// Scale to screen dimensions.
-			opts.Camera.Screen().Map(&p1, &p1)
-			opts.Camera.Screen().Map(&p2, &p2)
+			settings.Camera.Screen().Map(&p1, &p1)
+			settings.Camera.Screen().Map(&p2, &p2)
 			toFixedPoint(&fp1, &p1)
 			toFixedPoint(&fp2, &p2)
 			// Stroke the rasterizer path.

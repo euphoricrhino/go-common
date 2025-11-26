@@ -164,7 +164,8 @@ const (
 
 // Represents a stateful worker goroutine to work on a subset of trajectories using Runge-Kutta Dopr853 variant.
 type traceWorker struct {
-	opts       *StreamlineOptions
+	settings   *TraceSettings
+	f          int
 	invEpsilon float64
 
 	// Stateful variables.
@@ -180,44 +181,44 @@ type traceWorker struct {
 	rcont1, rcont2, rcont3, rcont4, rcont5, rcont6, rcont7, rcont8, k14, k15, k16 graphix.Vec3
 }
 
-func newTraceWorker(opts *StreamlineOptions) *traceWorker {
-	return &traceWorker{opts: opts}
+func newTraceWorker(settings *TraceSettings, f int) *traceWorker {
+	return &traceWorker{settings: settings, f: f}
 }
 
 func (tw *traceWorker) eval(xout, x, tan *graphix.Vec3) {
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a21*tw.h))
-	tw.opts.TangentAt(&tw.k2, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k2, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a31*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k2, a32*tw.h))
-	tw.opts.TangentAt(&tw.k3, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k3, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a41*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k3, a43*tw.h))
-	tw.opts.TangentAt(&tw.k4, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k4, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a51*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k3, a53*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a54*tw.h))
-	tw.opts.TangentAt(&tw.k5, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k5, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a61*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a64*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k5, a65*tw.h))
-	tw.opts.TangentAt(&tw.k6, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k6, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a71*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a74*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k5, a75*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k6, a76*tw.h))
-	tw.opts.TangentAt(&tw.k7, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k7, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a81*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a84*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k5, a85*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k6, a86*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k7, a87*tw.h))
-	tw.opts.TangentAt(&tw.k8, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k8, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a91*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a94*tw.h))
@@ -225,7 +226,7 @@ func (tw *traceWorker) eval(xout, x, tan *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k6, a96*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k7, a97*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k8, a98*tw.h))
-	tw.opts.TangentAt(&tw.k9, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k9, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a101*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a104*tw.h))
@@ -234,7 +235,7 @@ func (tw *traceWorker) eval(xout, x, tan *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k7, a107*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k8, a108*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k9, a109*tw.h))
-	tw.opts.TangentAt(&tw.k10, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k10, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a111*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a114*tw.h))
@@ -244,7 +245,7 @@ func (tw *traceWorker) eval(xout, x, tan *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k8, a118*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k9, a119*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k10, a1110*tw.h))
-	tw.opts.TangentAt(&tw.k11, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k11, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a121*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k4, a124*tw.h))
@@ -255,7 +256,7 @@ func (tw *traceWorker) eval(xout, x, tan *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k9, a129*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k10, a1210*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k11, a1211*tw.h))
-	tw.opts.TangentAt(&tw.k12, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k12, &tw.tmp1, tw.f)
 
 	tw.xerr.Scale(tan, b1)
 	tw.xerr.Add(&tw.xerr, tw.tmp1.Scale(&tw.k6, b6))
@@ -378,7 +379,7 @@ func (tw *traceWorker) prepareDense(x, xout, tan, tanout *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k11, a1411*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k12, a1412*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(tanout, a1413*tw.h))
-	tw.opts.TangentAt(&tw.k14, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k14, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a151*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k6, a156*tw.h))
@@ -388,7 +389,7 @@ func (tw *traceWorker) prepareDense(x, xout, tan, tanout *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k12, a1512*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(tanout, a1513*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k14, a1514*tw.h))
-	tw.opts.TangentAt(&tw.k15, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k15, &tw.tmp1, tw.f)
 
 	tw.tmp1.Add(x, tw.tmp2.Scale(tan, a161*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k6, a166*tw.h))
@@ -398,7 +399,7 @@ func (tw *traceWorker) prepareDense(x, xout, tan, tanout *graphix.Vec3) {
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(tanout, a1613*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k14, a1614*tw.h))
 	tw.tmp1.Add(&tw.tmp1, tw.tmp2.Scale(&tw.k15, a1615*tw.h))
-	tw.opts.TangentAt(&tw.k16, &tw.tmp1)
+	tw.settings.TangentAt(&tw.k16, &tw.tmp1, tw.f)
 
 	tw.rcont5.Scale(&tw.rcont5, tw.h)
 	tw.rcont5.Add(&tw.rcont5, tw.tmp1.Scale(tanout, d413*tw.h))
@@ -445,7 +446,7 @@ func (tw *traceWorker) denseOut(t float64) {
 
 func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 	for i := range trajs {
-		if i%tw.opts.Workers != w {
+		if i%tw.settings.Workers != w {
 			continue
 		}
 		traj := trajs[i]
@@ -458,10 +459,10 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 		tw.invEpsilon = 1 / traj.Epsilon
 		tw.h, tw.hnext = traj.InitStep, 0.0
 		tw.rejected = false
-		tw.opts.TangentAt(tan, x)
+		tw.settings.TangentAt(tan, x, tw.f)
 		var tail *renderPoint
 		for !traj.AtEnd(x, tan) {
-			if tail == nil || tw.tmp1.Sub(x, tail.pos).Norm() >= tw.opts.MinDist {
+			if tail == nil || tw.tmp1.Sub(x, tail.pos).Norm() >= tw.settings.MinDist {
 				tail = &renderPoint{tan: tan.Norm(), pos: graphix.NewCopyVec3(x)}
 				traj.points = append(traj.points, tail)
 			}
@@ -474,7 +475,7 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 				}
 			}
 
-			if tw.tmp1.Sub(xout, tail.pos).Norm() > tw.opts.MaxDist {
+			if tw.tmp1.Sub(xout, tail.pos).Norm() > tw.settings.MaxDist {
 				// xout is too far from the tail render point.
 				// Prepare the dense interpolation coefficients.
 				tw.prepareDense(x, xout, tan, tanout)
@@ -497,11 +498,11 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 						for {
 							tw.denseOut(t)
 							distFromTail := tw.tmp1.Sub(&tw.xint, tail.pos).Norm()
-							if distFromTail < tw.opts.MinDist {
+							if distFromTail < tw.settings.MinDist {
 								left, t = t, (t+right)/2
 								continue
 							}
-							if distFromTail > tw.opts.MaxDist {
+							if distFromTail > tw.settings.MaxDist {
 								t, right = (t+left)/2, t
 								continue
 							}
@@ -509,15 +510,18 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 						}
 						// At this point, we have found xint such that MinDist <= |xint-tail| <= MaxDist.
 						// Corner case: is the tracing ending at xint?
-						tw.opts.TangentAt(&tw.tanint, &tw.xint)
+						tw.settings.TangentAt(&tw.tanint, &tw.xint, tw.f)
 						if traj.AtEnd(&tw.xint, &tw.tanint) {
 							return false
 						}
 						// Make xint the new tail and add it to the render points.
-						tail = &renderPoint{tan: tw.tanint.Norm(), pos: graphix.NewCopyVec3(&tw.xint)}
+						tail = &renderPoint{
+							tan: tw.tanint.Norm(),
+							pos: graphix.NewCopyVec3(&tw.xint),
+						}
 						traj.points = append(traj.points, tail)
 						// If |xout-tail| > MaxDist, repeat the above to insert more interpolated points closer to xout.
-						if tw.tmp1.Sub(xout, &tw.xint).Norm() <= tw.opts.MinDist {
+						if tw.tmp1.Sub(xout, &tw.xint).Norm() <= tw.settings.MinDist {
 							return true
 						}
 						left, right, t = t, 1, (1+t)/2
@@ -529,7 +533,7 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 				}
 			}
 
-			tw.opts.TangentAt(tanout, xout)
+			tw.settings.TangentAt(tanout, xout, tw.f)
 			// Swap the x/xout pointer for next iteration.
 			x, xout = xout, x
 			tan, tanout = tanout, tan

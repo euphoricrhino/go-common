@@ -29,7 +29,7 @@ func TestCircularCameraOrbit(t *testing.T) {
 		sc,
 	)
 
-	assert.Equal(t, 4, cir.NumPositions())
+	assert.Equal(t, 4, cir.Frames())
 
 	// Test the camera position by verifying the view transform of v.
 	v := NewVec3(1, 0, 1)
@@ -62,7 +62,7 @@ func TestCircularCameraOrbit(t *testing.T) {
 
 func TestStationaryCamera(t *testing.T) {
 	cam := &Camera{}
-	st := NewStationaryCamera(cam)
-	assert.Equal(t, 1, st.NumPositions())
+	st := NewStationaryCamera(cam, 5)
+	assert.Equal(t, 5, st.Frames())
 	assert.Same(t, cam, st.GetCamera(15))
 }
