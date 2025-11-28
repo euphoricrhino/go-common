@@ -34,3 +34,43 @@ func init() {
 func RandColor() color.NRGBA64 {
 	return hueRGB[rand.Intn(len(hueRGB))]
 }
+
+// RandColors returns n distinct full-saturation colors of random hues where adjacent colors have maximal distance along the hue circle.
+func RandColors(n int) []color.NRGBA64 {
+	colors := make([]color.NRGBA64, n)
+	offset := rand.Float64()
+
+	// Build order array based on parity.
+	order := make([]int, n)
+	if n%2 == 1 {
+		// Odd: use stride to jump through positions, since floor(n/2) is coprime to n, we are guaranteed to visit every position after n iterations.
+		stride := n / 2
+		pos := 0
+		for i := range n {
+			order[i] = pos
+			pos = (pos + stride) % n
+		}
+	} else {
+		// Even: alternate between first and second half.
+		half := n / 2
+		for i := range n {
+			if i%2 == 0 {
+				order[i] = i / 2
+			} else {
+				order[i] = half + i/2
+			}
+		}
+	}
+
+	// Generate colors using the order
+	for i, idx := range order {
+		hue := math.Mod(offset+float64(idx)/float64(n), 1.0)
+		hueIdx := int(hue * float64(len(hueRGB)))
+		if hueIdx >= len(hueRGB) {
+			hueIdx = len(hueRGB) - 1
+		}
+		colors[i] = hueRGB[hueIdx]
+	}
+
+	return colors
+}

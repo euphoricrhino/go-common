@@ -461,7 +461,7 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 		tw.rejected = false
 		tw.settings.TangentAt(tan, x, tw.f)
 		var tail *renderPoint
-		for !traj.AtEnd(x, tan) {
+		for !traj.AtEnd(x, tan, tw.f) {
 			if tail == nil || tw.tmp1.Sub(x, tail.pos).Norm() >= tw.settings.MinDist {
 				tail = &renderPoint{tan: tan.Norm(), pos: graphix.NewCopyVec3(x)}
 				traj.points = append(traj.points, tail)
@@ -511,7 +511,7 @@ func (tw *traceWorker) run(w int, trajs []*Trajectory) {
 						// At this point, we have found xint such that MinDist <= |xint-tail| <= MaxDist.
 						// Corner case: is the tracing ending at xint?
 						tw.settings.TangentAt(&tw.tanint, &tw.xint, tw.f)
-						if traj.AtEnd(&tw.xint, &tw.tanint) {
+						if traj.AtEnd(&tw.xint, &tw.tanint, tw.f) {
 							return false
 						}
 						// Make xint the new tail and add it to the render points.
