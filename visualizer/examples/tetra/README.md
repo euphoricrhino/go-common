@@ -10,3 +10,6 @@ ffmpeg -framerate 20.75 -i /tmp/tetra/frame-%04d.png -c:v libx264  -profile:v hi
 ```
 
 ## Example images
+
+<img width="1280" height="1280" alt="frame-0014" src="https://github.com/user-attachments/assets/6faae15e-8385-4ad1-915f-ff7342bea122" />
+<img width="1280" height="1280" alt="frame-0117" src="https://github.com/user-attachments/assets/6f896ea2-8ae4-4aba-943b-7783adfad813" />
